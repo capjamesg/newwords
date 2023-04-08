@@ -1,11 +1,13 @@
-import pyatproto
-import frontmatter
+import argparse
 import os
 import string
-import argparse
-from nltk.stem.wordnet import WordNetLemmatizer
+
+import frontmatter
 import nltk
-import config 
+import pyatproto
+from nltk.stem.wordnet import WordNetLemmatizer
+
+import config
 
 parser = argparse.ArgumentParser()
 
@@ -15,7 +17,9 @@ parser.add_argument("--full_path", help="path to all other blog posts")
 args = parser.parse_args()
 
 if not args.path or not args.full_path:
-    raise ValueError("Please set the path to the blog post and the path to all other blog posts")
+    raise ValueError(
+        "Please set the path to the blog post and the path to all other blog posts"
+    )
 FULL_PATH = args.full_path
 
 ENDPOINT = config.ATPROTO_ENDPOINT
@@ -23,9 +27,12 @@ USERNAME = config.ATPROTO_USERNAME
 PASSWORD = config.ATPROTO_PASSWORD
 
 if not ENDPOINT or not USERNAME or not PASSWORD:
-    raise ValueError("Please set the ATPROTO_ENDPOINT, ATPROTO_USERNAME and ATPROTO_PASSWORD environment variables.")
+    raise ValueError(
+        "Please set the ATPROTO_ENDPOINT, ATPROTO_USERNAME and ATPROTO_PASSWORD environment variables."
+    )
 
 lemmatizer = WordNetLemmatizer()
+
 
 def normalize_word(word) -> str:
     """
@@ -34,27 +41,28 @@ def normalize_word(word) -> str:
     # if proper noun, return empty string
     pos = nltk.pos_tag([word])[0][1]
 
-    if pos == 'NNP' or pos == 'NNPS':
+    if pos == "NNP" or pos == "NNPS":
         return ""
 
-    if word.startswith('http'):
+    if word.startswith("http"):
         return ""
-    
+
     # if word contains numbers, skip
     if any(char.isdigit() for char in word):
         return ""
-    
+
     if "'" in word:
         word = word.split("'")[0]
-    
+
     word = word.strip(string.punctuation)
 
     lemma = lemmatizer.lemmatize(word)
 
     if len(lemma) < 4:
         return ""
-    
+
     return lemma.lower()
+
 
 def get_words_from_all_posts() -> tuple:
     documents = {}
@@ -64,9 +72,11 @@ def get_words_from_all_posts() -> tuple:
     sorted_file_list.sort()
 
     for filename in sorted_file_list:
-        if filename.endswith('.md'):
-            with open(os.path.join(FULL_PATH, filename), 'r') as f:
-                documents[os.path.join(FULL_PATH, filename)] = frontmatter.load(f).content
+        if filename.endswith(".md"):
+            with open(os.path.join(FULL_PATH, filename), "r") as f:
+                documents[os.path.join(FULL_PATH, filename)] = frontmatter.load(
+                    f
+                ).content
 
     words = {}
 
@@ -79,6 +89,7 @@ def get_words_from_all_posts() -> tuple:
                 words[word] = 1
 
     return documents, words
+
 
 def get_unique_words_from_newest_post(documents: dict, words: dict) -> dict:
     newest_post = documents[args.path]
@@ -98,6 +109,7 @@ def get_unique_words_from_newest_post(documents: dict, words: dict) -> dict:
 
     return newest_post_words
 
+
 documents, words = get_words_from_all_posts()
 newest_post_words = get_unique_words_from_newest_post(documents, words)
 
@@ -105,6 +117,9 @@ ap = pyatproto.AtProtoConfiguration(ENDPOINT, USERNAME, PASSWORD)
 
 word_list = "\n".join([f"{word}" for word in newest_post_words])
 
-bluesky_post = "In my most recent blog post, I used the following words for the first time:\n\n" + word_list
+bluesky_post = (
+    "In my most recent blog post, I used the following words for the first time:\n\n"
+    + word_list
+)
 
 post = ap.create_post(bluesky_post)
